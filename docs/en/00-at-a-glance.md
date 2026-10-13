@@ -6,41 +6,30 @@
 
 ```mermaid
 flowchart TB
-    XL[(Quote-tracking workbooks<br/>one per year × product group<br/>typed by hand, no validation)]
-    REG[(Order register<br/>one workbook per year)]
-
-    subgraph ETL["Re-runnable ETL (Python)"]
-        CFG[[Config registry<br/>file → sheet → start row → column map]]
-        EX[Extract<br/>layout-aware reader]
-        TR[Transform<br/>names · statuses · dates · work numbers · countries]
-        LD[Incremental load<br/>only the imported product group × year]
-        CFG --> EX --> TR --> LD
-    end
-
-    subgraph OPS["Operator workshop (Flask)"]
-        WIZ[Import wizard<br/>partners · statuses · quality gate]
-        GATE{blocking<br/>issues?}
-        WIZ --> GATE
-    end
-
-    ODB[(Operator DB<br/>partner master · aliases · merges<br/>status dictionary · country decisions<br/><b>persistent</b>)]
-    DDB[(Analytics DB<br/>quotes · line items · partners · register<br/><b>derived, disposable</b>)]
-    V[SQL views<br/>pipeline · funnel · quality · KPIs]
-    J[/JSON contract v2/]
-    OUT1[Dashboard<br/>single HTML file]
-    OUT2[Bank report<br/>hand-written, numbers from the DB]
+    SRC[(Hand-typed workbooks<br/>one per year × product group<br/>+ the order register)]
     OWN([Spreadsheet owners])
 
-    XL --> EX
-    REG --> LD
-    XL --> WIZ
+    subgraph OPS["Operator workshop"]
+        direction LR
+        WIZ[Import wizard<br/>partners · statuses] --> GATE{Quality<br/>gate}
+    end
+
+    subgraph ETL["Re-runnable ETL"]
+        direction LR
+        EX[Extract<br/>config registry] --> TR[Transform<br/>names · statuses · countries] --> LD[Incremental<br/>load]
+    end
+
+    ODB[(Operator DB<br/>every human decision<br/><b>persistent</b>)]
+    DDB[(Analytics DB<br/><b>derived, disposable</b>)]
+    OUT[SQL views → JSON contract<br/>dashboard · bank report]
+
+    SRC --> WIZ
+    GATE -->|blocking: error list| OWN
+    OWN -.->|fix at the source| SRC
+    GATE -->|clean| EX
     WIZ <--> ODB
     ODB --> TR
-    GATE -->|yes: error list| OWN
-    OWN -->|fix the source| XL
-    GATE -->|no| LD
-    LD --> DDB --> V --> J --> OUT1
-    V --> OUT2
+    LD --> DDB --> OUT
 ```
 
 ## Fourteen decisions that define it

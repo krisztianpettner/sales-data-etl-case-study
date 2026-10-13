@@ -6,41 +6,30 @@
 
 ```mermaid
 flowchart TB
-    XL[(Ajánlatkövető munkafüzetek<br/>évenként × termékcsoportonként<br/>kézzel gépelve, ellenőrzés nélkül)]
-    REG[(Rendelés-nyilvántartó<br/>évenként egy munkafüzet)]
-
-    subgraph ETL["Újrafuttatható ETL (Python)"]
-        CFG[[Konfig-regiszter<br/>fájl → lap → kezdősor → oszloptérkép]]
-        EX[Beolvasás<br/>szerkezet-tudatos olvasó]
-        TR[Átalakítás<br/>nevek · státuszok · dátumok · munkaszámok · országok]
-        LD[Inkrementális betöltés<br/>csak az importált termékcsoport × év]
-        CFG --> EX --> TR --> LD
-    end
-
-    subgraph OPS["Operátori műhely (Flask)"]
-        WIZ[Import-varázsló<br/>partnerek · státuszok · minőségkapu]
-        GATE{blokkoló<br/>hiba?}
-        WIZ --> GATE
-    end
-
-    ODB[(Operátori DB<br/>partnertörzs · aliasok · összevonások<br/>státusz-szótár · ország-döntések<br/><b>tartós</b>)]
-    DDB[(Elemzési DB<br/>ajánlatok · tételsorok · partnerek · nyilvántartó<br/><b>származtatott, eldobható</b>)]
-    V[SQL-nézetek<br/>pipeline · funnel · minőség · KPI]
-    J[/JSON-szerződés v2/]
-    OUT1[Dashboard<br/>egyetlen HTML-fájl]
-    OUT2[Banki riport<br/>kézzel írt, számok a DB-ből]
+    SRC[(Kézzel gépelt munkafüzetek<br/>évenként × termékcsoportonként<br/>+ a rendelés-nyilvántartó)]
     OWN([A táblák gazdái])
 
-    XL --> EX
-    REG --> LD
-    XL --> WIZ
+    subgraph OPS["Operátori műhely"]
+        direction LR
+        WIZ[Import-varázsló<br/>partnerek · státuszok] --> GATE{Minőség-<br/>kapu}
+    end
+
+    subgraph ETL["Újrafuttatható ETL"]
+        direction LR
+        EX[Beolvasás<br/>konfig-regiszter] --> TR[Átalakítás<br/>nevek · státuszok · országok] --> LD[Inkrementális<br/>betöltés]
+    end
+
+    ODB[(Operátori DB<br/>minden emberi döntés<br/><b>tartós</b>)]
+    DDB[(Elemzési DB<br/><b>származtatott, eldobható</b>)]
+    OUT[SQL-nézetek → JSON-szerződés<br/>dashboard · banki riport]
+
+    SRC --> WIZ
+    GATE -->|blokkoló: hibajegyzék| OWN
+    OWN -.->|javítás a forrásban| SRC
+    GATE -->|tiszta| EX
     WIZ <--> ODB
     ODB --> TR
-    GATE -->|igen: hibajegyzék| OWN
-    OWN -->|javítják a forrást| XL
-    GATE -->|nem| LD
-    LD --> DDB --> V --> J --> OUT1
-    V --> OUT2
+    LD --> DDB --> OUT
 ```
 
 ## Tizennégy döntés, ami meghatározza
