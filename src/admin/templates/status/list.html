@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Státusz szótár — Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-24">
+  <h1 class="mb-0">Státusz szótár</h1>
+</div>
+
+<p class="text-muted mb-16">
+  A beépített státuszok az ETL konfigurációból származnak és nem módosíthatók.
+  Az egyéni státuszok az adatbázisban tárolódnak és szerkeszthetők.
+</p>
+
+<!-- Combined table: built-in + custom -->
+<div class="table-wrapper mb-24">
+  <table>
+    <thead>
+      <tr>
+        <th>Nyers státusz (Excel)</th>
+        <th>Normalizált</th>
+        <th>Nyitott</th>
+        <th>Nyert</th>
+        <th>Elveszített</th>
+        <th>Típus</th>
+        <th>Műveletek</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Built-in entries -->
+      {% for e in builtin_entries %}
+      <tr>
+        <td><code>{{ e.raw_status }}</code></td>
+        <td><span class="badge badge-gray">{{ e.normalized }}</span></td>
+        <td>
+          {% if e.is_open %}<span class="badge badge-blue">Nyitott</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if e.is_won %}<span class="badge badge-green">Nyert</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if e.is_lost %}<span class="badge badge-red">Elveszített</span>{% else %}—{% endif %}
+        </td>
+        <td><span class="badge badge-blue">beépített</span></td>
+        <td class="text-muted">—</td>
+      </tr>
+      {% endfor %}
+
+      <!-- Custom entries -->
+      {% for e in custom_entries %}
+      <tr id="row-{{ e.id }}">
+        <td>
+          <span id="view-raw-{{ e.id }}"><code>{{ e.raw_status }}</code></span>
+          <input type="text" id="edit-raw-{{ e.id }}" value="{{ e.raw_status }}"
+                 style="display:none; width:100%;">
+        </td>
+        <td>
+          <span id="view-norm-{{ e.id }}">
+            <span class="badge badge-gray">{{ e.normalized }}</span>
+          </span>
+          <select id="edit-norm-{{ e.id }}" style="display:none;">
+            {% for val in normalized_values %}
+            <option value="{{ val }}" {% if val == e.normalized %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          {% if e.is_open %}<span class="badge badge-blue">Nyitott</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if e.is_won %}<span class="badge badge-green">Nyert</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if e.is_lost %}<span class="badge badge-red">Elveszített</span>{% else %}—{% endif %}
+        </td>
+        <td>
+          <span class="badge" style="background:rgba(168,85,247,0.15);color:#d8b4fe;">egyéni</span>
+        </td>
+        <td>
+          <!-- View mode buttons -->
+          <div id="btn-view-{{ e.id }}" class="btn-group">
+            <button class="btn btn-outline btn-sm"
+                    onclick="startEdit({{ e.id }})">Szerkesztés</button>
+            <form method="post" action="/status/{{ e.id }}/delete"
+                  style="display:inline;"
+                  onsubmit="return confirm('Biztosan törli ezt a státuszt?')">
+              <button type="submit" class="btn btn-danger btn-sm">Törlés</button>
+            </form>
+          </div>
+          <!-- Edit mode buttons -->
+          <div id="btn-edit-{{ e.id }}" class="btn-group" style="display:none;">
+            <form method="post" action="/status/{{ e.id }}/edit" id="form-edit-{{ e.id }}">
+              <input type="hidden" name="raw_status" id="form-raw-{{ e.id }}">
+              <input type="hidden" name="normalized" id="form-normalized-{{ e.id }}">
+              <button type="button" class="btn btn-success btn-sm"
+                      onclick="submitEdit({{ e.id }})">Mentés</button>
+              <button type="button" class="btn btn-outline btn-sm"
+                      onclick="cancelEdit({{ e.id }})">Mégse</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+
+      {% if not builtin_entries and not custom_entries %}
+      <tr>
+        <td colspan="7" class="empty-state">
+          <p>Nincs státusz bejegyzés.</p>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add form -->
+<div class="card">
+  <h2>Új státusz hozzáadása</h2>
+  <form method="post" action="/status/add">
+    <div class="flex gap-16 items-center" style="flex-wrap:wrap;">
+      <div class="flex-1" style="min-width:200px;">
+        <label for="raw_status">Nyers státusz (Excel szöveg)</label>
+        <input type="text" id="raw_status" name="raw_status"
+               placeholder="pl. Megkérdeztük az árat..." required>
+      </div>
+      <div style="min-width:200px;">
+        <label for="normalized">Normalizált érték</label>
+        <select id="normalized" name="normalized" required>
+          <option value="">— Válasszon —</option>
+          {% for val in normalized_values %}
+          <option value="{{ val }}">{{ val }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="align-self:flex-end;">
+        <button type="submit" class="btn btn-primary">Hozzáadás</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  function startEdit(id) {
+    document.getElementById('view-raw-' + id).style.display = 'none';
+    document.getElementById('edit-raw-' + id).style.display = 'block';
+    document.getElementById('view-norm-' + id).style.display = 'none';
+    document.getElementById('edit-norm-' + id).style.display = 'block';
+    document.getElementById('btn-view-' + id).style.display = 'none';
+    document.getElementById('btn-edit-' + id).style.display = 'flex';
+  }
+
+  function cancelEdit(id) {
+    document.getElementById('view-raw-' + id).style.display = '';
+    document.getElementById('edit-raw-' + id).style.display = 'none';
+    document.getElementById('view-norm-' + id).style.display = '';
+    document.getElementById('edit-norm-' + id).style.display = 'none';
+    document.getElementById('btn-view-' + id).style.display = '';
+    document.getElementById('btn-edit-' + id).style.display = 'none';
+  }
+
+  function submitEdit(id) {
+    const raw = document.getElementById('edit-raw-' + id).value.trim();
+    const norm = document.getElementById('edit-norm-' + id).value;
+    if (!raw || !norm) {
+      alert('Töltse ki az összes mezőt!');
+      return;
+    }
+    document.getElementById('form-raw-' + id).value = raw;
+    document.getElementById('form-normalized-' + id).value = norm;
+    document.getElementById('form-edit-' + id).submit();
+  }
+</script>
+{% endblock %}

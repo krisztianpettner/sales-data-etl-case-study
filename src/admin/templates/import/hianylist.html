@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Import — Hiánylista{% endblock %}
+
+{% block progress %}
+<div class="wizard-bar">
+    {% for step in wizard_steps %}
+    <div class="wizard-step {{ 'active' if step.num == current_step else ('done' if step.num < current_step else '') }}">
+        <div class="wizard-circle">{{ step.num }}</div>
+        <div class="wizard-label">{{ step.label }}</div>
+    </div>
+    {% if not loop.last %}<div class="wizard-line {{ 'done' if step.num < current_step else '' }}"></div>{% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>4. Hiánylista</h1>
+    <p class="muted">Adatminőségi problémák ellenőrzése. Blokkoló problémák megoldása szükséges a továbblépéshez.</p>
+</div>
+
+<!-- Summary -->
+<div class="issue-summary box">
+    {% if blocking %}
+    <div class="issue-badge issue-blocking">
+        {{ blocking|length }} blokkoló probléma
+    </div>
+    {% endif %}
+    {% if warnings %}
+    <div class="issue-badge issue-warning">
+        {{ warnings|length }} figyelmeztetés
+    </div>
+    {% endif %}
+    {% if overridden %}
+    <div class="issue-badge issue-overridden">
+        {{ overridden|length }} felülbírált
+    </div>
+    {% endif %}
+    {% if not blocking and not warnings %}
+    <div class="issue-badge issue-ok">
+        Nincs probléma — folytathat!
+    </div>
+    {% endif %}
+</div>
+
+<!-- BLOCKING issues -->
+{% if blocking %}
+<div class="box">
+    <h3 class="issue-header-blocking">Blokkoló problémák</h3>
+    <p class="muted" style="margin-bottom:12px">Ezek megoldása nélkül nem lehet betölteni az adatokat.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Típus</th>
+                <th>Ajánlat</th>
+                <th>Leírás</th>
+                <th>Művelet</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in blocking %}
+            <tr>
+                <td><span class="tag tag-blocking">{{ issue.issue_type }}</span></td>
+                <td>{{ issue.quote_id or '—' }}</td>
+                <td>{{ issue.detail }}</td>
+                <td>
+                    <form method="POST" style="display:inline">
+                        <input type="hidden" name="action" value="override">
+                        <input type="hidden" name="issue_id" value="{{ issue.id }}">
+                        <div class="override-group">
+                            <input type="text" name="reason" placeholder="Indoklás..."
+                                   class="input-sm" required>
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                Felülbírálás
+                            </button>
+                        </div>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- OVERRIDDEN blocking issues -->
+{% if overridden %}
+<div class="box">
+    <h3 style="color: #94a3b8;">Felülbírált blokkolók</h3>
+    <table>
+        <thead>
+            <tr><th>Típus</th><th>Ajánlat</th><th>Leírás</th><th>Indoklás</th></tr>
+        </thead>
+        <tbody>
+            {% for issue in overridden %}
+            <tr style="opacity:.7">
+                <td><span class="tag tag-muted">{{ issue.issue_type }}</span></td>
+                <td>{{ issue.quote_id or '—' }}</td>
+                <td>{{ issue.detail }}</td>
+                <td><em>{{ issue.override_reason }}</em></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- WARNING issues -->
+{% if warnings %}
+<div class="box">
+    <h3 class="issue-header-warning">Figyelmeztetések</h3>
+    <p class="muted" style="margin-bottom:12px">Ezek nem blokkolják a betöltést, de érdemes átnézni.</p>
+    <table>
+        <thead>
+            <tr><th>Típus</th><th>Ajánlat</th><th>Leírás</th></tr>
+        </thead>
+        <tbody>
+            {% for issue in warnings %}
+            <tr>
+                <td><span class="tag tag-warning">{{ issue.issue_type }}</span></td>
+                <td>{{ issue.quote_id or '—' }}</td>
+                <td>{{ issue.detail }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Navigation -->
+<form method="POST">
+    <div class="form-actions">
+        <a href="{{ url_for('import_wizard.statuses', session_id=session_id) }}"
+           class="btn btn-secondary">← Vissza</a>
+        {% if can_proceed %}
+        <button type="submit" name="action" value="next" class="btn btn-primary">
+            Tovább a jóváhagyáshoz →
+        </button>
+        {% else %}
+        <button type="button" class="btn btn-primary" disabled
+                title="Blokkoló problémák megoldása szükséges">
+            Tovább ({{ blocking|length }} blokkoló)
+        </button>
+        {% endif %}
+    </div>
+</form>
+
+<style>
+.issue-summary { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 16px; }
+.issue-badge { padding: 6px 14px; border-radius: 8px; font-size: .8rem; font-weight: 600; }
+.issue-blocking { background: rgba(239,68,68,.15); color: #fca5a5; }
+.issue-warning { background: rgba(245,158,11,.15); color: #fbbf24; }
+.issue-overridden { background: rgba(100,116,139,.15); color: #94a3b8; }
+.issue-ok { background: rgba(34,197,94,.15); color: #4ade80; }
+.issue-header-blocking { color: #fca5a5; border-bottom: 2px solid #ef4444; padding-bottom: 8px; }
+.issue-header-warning { color: #fbbf24; border-bottom: 2px solid #f59e0b; padding-bottom: 8px; }
+.tag-blocking { background: rgba(239,68,68,.2); color: #fca5a5; display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .65rem; font-weight: 600; }
+.tag-warning { background: rgba(245,158,11,.2); color: #fbbf24; display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .65rem; font-weight: 600; }
+.tag-muted { background: rgba(100,116,139,.2); color: #94a3b8; display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .65rem; font-weight: 600; text-decoration: line-through; }
+.override-group { display: flex; gap: 6px; align-items: center; }
+.input-sm { padding: 4px 8px; font-size: .75rem; border-radius: 6px; background: #0f172a; border: 1px solid #475569; color: #e2e8f0; }
+.btn-sm { padding: 3px 10px; font-size: .7rem; }
+</style>
+{% endblock %}

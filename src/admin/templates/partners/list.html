@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Partnerek — Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-24">
+  <h1 class="mb-0">Partnerek</h1>
+  <div class="btn-group">
+    <a href="/partners/new" class="btn btn-success btn-sm">+ Új partner</a>
+    <a href="/partners/merge" class="btn btn-warning btn-sm">Összevonás</a>
+  </div>
+</div>
+
+<!-- Search & filter form -->
+<form method="get" action="/partners/" class="card mb-16">
+  <div class="flex gap-16 items-center" style="flex-wrap:wrap;">
+    <div class="flex-1" style="min-width:200px;">
+      <label for="q">Keresés (név)</label>
+      <input type="text" id="q" name="q" value="{{ q }}" placeholder="Partvernév keresése...">
+    </div>
+    <div style="min-width:160px;">
+      <label for="country">Ország</label>
+      <select id="country" name="country">
+        <option value="">— Összes —</option>
+        {% for c in countries %}
+          <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:160px;">
+      <label for="type">Típus</label>
+      <select id="type" name="type">
+        <option value="">— Összes —</option>
+        {% for t in types %}
+          <option value="{{ t }}" {% if t == ptype %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="align-self:flex-end;">
+      <button type="submit" class="btn btn-primary btn-sm">Szures</button>
+      {% if q or country or ptype %}
+        <a href="/partners/" class="btn btn-outline btn-sm">Torles</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<!-- Results summary -->
+<div class="flex items-center justify-between mb-8">
+  <span class="text-muted">
+    {{ total }} partner
+    {% if q or country or ptype %} (szurt){% endif %}
+    &mdash; {{ page }}. oldal / {{ total_pages }}
+  </span>
+</div>
+
+<!-- Partner table -->
+<div class="table-wrapper mb-16">
+  <table>
+    <thead>
+      <tr>
+        <th>PM-ID</th>
+        <th>Nev</th>
+        <th>Orszag</th>
+        <th>Tipus</th>
+        <th>Iparag</th>
+        <th>Aliasok</th>
+        <th>Muveletek</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in partners %}
+      <tr>
+        <td><code>{{ p.partner_id }}</code></td>
+        <td>{{ p.display_name }}</td>
+        <td>{{ p.country or '—' }}</td>
+        <td>
+          {% if p.partner_type %}
+            <span class="badge {% if p.partner_type == 'viszonteladó' %}badge-blue{% else %}badge-gray{% endif %}">
+              {{ p.partner_type }}
+            </span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>{{ p.industry or '—' }}</td>
+        <td>
+          {% if p.alias_count > 0 %}
+            <span class="badge badge-gray">{{ p.alias_count }}</span>
+          {% else %}
+            <span class="text-muted">0</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="/partners/{{ p.partner_id }}" class="btn btn-outline btn-sm">Szerkesztes</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="empty-state">
+          <p>Nincs talalat a megadott szuresi feltetelek alapjan.</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="flex gap-8 items-center">
+  {% set base_url = '/partners/?q=' ~ q ~ '&country=' ~ country ~ '&type=' ~ ptype %}
+  {% if page > 1 %}
+    <a href="{{ base_url }}&page={{ page - 1 }}" class="btn btn-outline btn-sm">Elozo</a>
+  {% else %}
+    <button class="btn btn-outline btn-sm" disabled>Elozo</button>
+  {% endif %}
+  <span class="text-muted">{{ page }} / {{ total_pages }}</span>
+  {% if page < total_pages %}
+    <a href="{{ base_url }}&page={{ page + 1 }}" class="btn btn-outline btn-sm">Kovetkezo</a>
+  {% else %}
+    <button class="btn btn-outline btn-sm" disabled>Kovetkezo</button>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

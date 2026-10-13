@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Főoldal — Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-24">
+  <h1>Főoldal</h1>
+  <div class="btn-group">
+    <a href="/import/upload" class="btn btn-primary">Új import indítása</a>
+  </div>
+</div>
+
+{% if partner_count == 0 and quote_total is none %}
+<!-- Welcome / empty state -->
+<div class="card">
+  <div class="empty-state">
+    <h2>Üdvözli az Admin!</h2>
+    <p>Még nincs adat. Kezdje az első importtal, hogy feltöltse az adatbázist.</p>
+    <a href="/import/upload" class="btn btn-primary btn-lg">Kezdje az első importtal!</a>
+  </div>
+</div>
+
+{% else %}
+<!-- Statistics cards -->
+<div class="card-grid card-grid-3 mb-24">
+  <div class="stat-card">
+    <div class="stat-value">{{ partner_count }}</div>
+    <div class="stat-label">Partner</div>
+  </div>
+
+  <div class="stat-card stat-card-pair">
+    <div class="stat-pair">
+      <div class="stat-half">
+        <div class="stat-value">{% if quote_total is not none %}{{ quote_tg1 }}{% else %}&mdash;{% endif %}</div>
+        <div class="stat-label">TG1 ajánlat</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-half">
+        <div class="stat-value">{% if quote_total is not none %}{{ quote_tg2 }}{% else %}&mdash;{% endif %}</div>
+        <div class="stat-label">TG2 ajánlat</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-value">{{ status_count }}</div>
+    <div class="stat-label">Státusz bejegyzés</div>
+  </div>
+</div>
+
+<!-- Last import info -->
+<div class="card mb-24">
+  <div class="card-title">Utolsó import</div>
+
+  {% if last_session %}
+    <div class="flex gap-16 items-center mb-16">
+      <div>
+        <span class="text-muted">Session ID:</span>
+        <code>{{ last_session['session_id'][:8] }}...</code>
+      </div>
+      <div>
+        <span class="text-muted">Állapot:</span>
+        {% set s = last_session['status'] %}
+        {% if s == 'done' %}
+          <span class="badge badge-green">{{ s }}</span>
+        {% elif s == 'aborted' %}
+          <span class="badge badge-red">{{ s }}</span>
+        {% elif s == 'uploading' %}
+          <span class="badge badge-yellow">{{ s }}</span>
+        {% else %}
+          <span class="badge badge-blue">{{ s }}</span>
+        {% endif %}
+      </div>
+      <div>
+        <span class="text-muted">Elindult:</span>
+        {{ last_session['started_at'] }}
+      </div>
+      {% if last_session['completed_at'] %}
+      <div>
+        <span class="text-muted">Befejezve:</span>
+        {{ last_session['completed_at'] }}
+      </div>
+      {% endif %}
+    </div>
+
+    {% if last_files %}
+      <div>
+        <div class="text-muted mb-8" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Feltöltött fájlok</div>
+        <div class="flex gap-8" style="flex-wrap:wrap;">
+          {% for key, path in last_files.items() %}
+            <span class="badge badge-blue">{{ key }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if last_session['notes'] %}
+      <div class="mt-16">
+        <span class="text-muted">Megjegyzés:</span> {{ last_session['notes'] }}
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div class="text-muted">Még nem történt import.</div>
+  {% endif %}
+</div>
+
+<!-- Quick actions -->
+<div class="card">
+  <div class="card-title">Gyorsműveletek</div>
+  <div class="btn-group">
+    <a href="/import/upload" class="btn btn-primary">Új import indítása</a>
+    <a href="/regenerate" class="btn btn-secondary" onclick="this.textContent='Generálás...'; this.style.pointerEvents='none';">Új dashboard generálása</a>
+    <a href="/partners/" class="btn btn-secondary">Partnerek kezelése</a>
+    <a href="/status/" class="btn btn-secondary">Státusz szótár</a>
+  </div>
+  <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+    <form action="/reset-dashboard" method="post" onsubmit="return confirm('Biztosan törli a dashboard adatbázist?\n\nTörlődik: dashboard.db, dashboard_data.json, dashboard.html\nMegmarad: partner törzs, aliasok, státusz szótár (admin.db)');">
+      <button type="submit" class="btn btn-danger">Dashboard adatbázis törlése</button>
+      <span class="text-muted" style="margin-left:8px; font-size:13px;">dashboard.db + generált fájlok (partner törzs megmarad)</span>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

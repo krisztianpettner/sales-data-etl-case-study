@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{% if partner %}Partner szerkesztes{% else %}Uj partner{% endif %} — Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-24">
+  <h1 class="mb-0">{% if partner %}Partner szerkesztes{% else %}Uj partner{% endif %}</h1>
+  <a href="/partners/" class="btn btn-outline btn-sm">Vissza a listahoz</a>
+</div>
+
+{% if partner %}
+<div class="mb-16">
+  <span class="text-muted">PM-ID: </span>
+  <code>{{ partner.partner_id }}</code>
+</div>
+{% endif %}
+
+<!-- Partner form -->
+<div class="card mb-24">
+  <h2>Adatok</h2>
+  <form method="post" action="{% if partner %}/partners/{{ partner.partner_id }}{% else %}/partners/new{% endif %}">
+    <div class="card-grid card-grid-2">
+      <div class="form-group">
+        <label for="display_name">Megjelenitesi nev *</label>
+        <input type="text" id="display_name" name="display_name"
+               value="{{ partner.display_name if partner else '' }}" required>
+      </div>
+      <div class="form-group">
+        <label for="official_name">Hivatalos nev</label>
+        <input type="text" id="official_name" name="official_name"
+               value="{{ partner.official_name if partner and partner.official_name else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="country">Orszag</label>
+        <input type="text" id="country" name="country"
+               value="{{ partner.country if partner and partner.country else '' }}"
+               placeholder="pl. Magyarország, Németország...">
+      </div>
+      <div class="form-group">
+        <label for="partner_type">Tipus</label>
+        <select id="partner_type" name="partner_type">
+          <option value="">— Valasszon —</option>
+          <option value="viszonteladó"
+            {% if partner and partner.partner_type == 'viszonteladó' %}selected{% endif %}>
+            viszonteladó
+          </option>
+          <option value="végfelhasználó"
+            {% if partner and partner.partner_type == 'végfelhasználó' %}selected{% endif %}>
+            végfelhasználó
+          </option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="tax_id_hu">HU adószam</label>
+        <input type="text" id="tax_id_hu" name="tax_id_hu"
+               value="{{ partner.tax_id_hu if partner and partner.tax_id_hu else '' }}"
+               placeholder="00000000-0-00">
+      </div>
+      <div class="form-group">
+        <label for="vat_eu">EU ÁFA szam</label>
+        <input type="text" id="vat_eu" name="vat_eu"
+               value="{{ partner.vat_eu if partner and partner.vat_eu else '' }}"
+               placeholder="DE000000000">
+      </div>
+      <div class="form-group">
+        <label for="industry">Iparag</label>
+        <input type="text" id="industry" name="industry"
+               value="{{ partner.industry if partner and partner.industry else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="teaor_code">TEÁOR kod</label>
+        <input type="text" id="teaor_code" name="teaor_code"
+               value="{{ partner.teaor_code if partner and partner.teaor_code else '' }}"
+               placeholder="0000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="website">Weboldal</label>
+      <input type="text" id="website" name="website"
+             value="{{ partner.website if partner and partner.website else '' }}"
+             placeholder="www.example.com">
+    </div>
+    <div class="form-group">
+      <label for="notes">Megjegyzes</label>
+      <textarea id="notes" name="notes" rows="3">{{ partner.notes if partner and partner.notes else '' }}</textarea>
+    </div>
+    <div class="btn-group mt-8">
+      <button type="submit" class="btn btn-primary">Mentes</button>
+      <a href="/partners/" class="btn btn-outline">Megse</a>
+    </div>
+  </form>
+</div>
+
+{% if partner %}
+<!-- Aliases section -->
+<div class="card">
+  <h2>Aliasok</h2>
+  {% if aliases %}
+  <div class="table-wrapper mb-16">
+    <table>
+      <thead>
+        <tr>
+          <th>Alias nev</th>
+          <th>Normalizalt</th>
+          <th>Forras</th>
+          <th>Letrehozva</th>
+          <th>Muveletek</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in aliases %}
+        <tr>
+          <td>{{ a.alias_name }}</td>
+          <td><code>{{ a.name_normalized }}</code></td>
+          <td>
+            <span class="badge badge-gray">{{ a.source or '—' }}</span>
+          </td>
+          <td class="text-muted">{{ a.created_at[:10] if a.created_at else '—' }}</td>
+          <td>
+            <form method="post"
+                  action="/partners/{{ partner.partner_id }}/alias/{{ a.id }}/delete"
+                  style="display:inline;"
+                  onsubmit="return confirm('Biztosan torli ezt az aliazt?')">
+              <button type="submit" class="btn btn-danger btn-sm">Torles</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-16">Nincs alias hozzarendelve.</p>
+  {% endif %}
+
+  <!-- Add alias form -->
+  <div style="max-width:400px;">
+    <h3>Alias hozzaadasa</h3>
+    <form method="post" action="/partners/{{ partner.partner_id }}/alias"
+          class="flex gap-8 items-center">
+      <input type="text" name="alias_name" placeholder="Alias neve..." required style="flex:1;">
+      <button type="submit" class="btn btn-secondary btn-sm">Hozzaadas</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

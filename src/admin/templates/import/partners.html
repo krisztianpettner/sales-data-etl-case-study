@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}Import — Partner matching{% endblock %}
+
+{% block progress %}
+<div class="wizard-bar">
+    {% for step in wizard_steps %}
+    <div class="wizard-step {{ 'active' if step.num == current_step else ('done' if step.num < current_step else '') }}">
+        <div class="wizard-circle">{{ step.num }}</div>
+        <div class="wizard-label">{{ step.label }}</div>
+    </div>
+    {% if not loop.last %}<div class="wizard-line {{ 'done' if step.num < current_step else '' }}"></div>{% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>2. Partner matching</h1>
+    <p class="muted">Párosítsa az importált partnerneveket a törzsadatokkal.</p>
+</div>
+
+<!-- Progress summary -->
+<div class="progress-summary box">
+    <span class="tag tag-green">{{ green|length }} zöld (automatikus)</span>
+    <span class="tag tag-yellow">{{ yellow|length }} sárga ({{ pending_yellow }} döntésre vár)</span>
+    <span class="tag tag-red">{{ red|length }} piros ({{ pending_red }} döntésre vár)</span>
+    {% if not all_resolved %}
+    <span class="tag tag-block">Továbblépés blokkolva — minden partnert hozzá kell rendelni</span>
+    {% endif %}
+</div>
+
+<!-- Quick filter -->
+<div class="box" style="padding:10px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px;">
+    <label for="table-filter" style="font-size:.8rem; color:#94a3b8; white-space:nowrap;">Szűrés:</label>
+    <div style="flex:1; position:relative;">
+        <input type="text" id="table-filter" placeholder="Partnernév keresése..."
+               style="width:100%; padding:6px 30px 6px 12px; font-size:.8rem; border-radius:6px;
+                      background:#0f172a; border:1px solid #475569; color:#e2e8f0;">
+        <button type="button" id="filter-clear"
+                style="display:none; position:absolute; right:6px; top:50%; transform:translateY(-50%);
+                       background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1rem;
+                       line-height:1; padding:2px 4px;"
+                title="Szűrő törlése">&times;</button>
+    </div>
+    <span id="filter-count" style="font-size:.75rem; color:#64748b;"></span>
+</div>
+
+<form method="POST">
+    <!-- GREEN ZONE -->
+    {% if green %}
+    <div class="box zone-box">
+        <h3 class="zone-header zone-green">Zöld zóna — automatikus egyezés (≥95%)</h3>
+        <table class="sortable">
+            <thead>
+                <tr>
+                    <th data-sort="text">Nyers név</th>
+                    <th data-sort="text">Egyezés</th>
+                    <th class="n" data-sort="num">Pontszám</th>
+                    <th class="n" data-sort="num">Előfordulás</th>
+                    <th>Művelet</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in green %}
+                <tr>
+                    <td>{{ p.raw_name }}</td>
+                    <td>{{ p.matched_pm_id or '—' }}</td>
+                    <td class="n">{{ "%.0f"|format((p.match_score or 0) * 100) }}%</td>
+                    <td class="n">{{ p.occurrence_count }}</td>
+                    <td>
+                        {% if p.decision %}
+                        <span class="tag tag-green">OK</span>
+                        {% else %}
+                        <button type="submit" name="action" value="reject"
+                                class="btn btn-sm btn-secondary"
+                                onclick="this.form.elements['staging_id'].value='{{ p.id }}'">
+                            Rossz?
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <input type="hidden" name="staging_id" value="">
+
+    <!-- YELLOW ZONE -->
+    {% if yellow %}
+    <div class="box zone-box">
+        <h3 class="zone-header zone-yellow">Sárga zóna — megerősítés szükséges (85-94%)</h3>
+        <table class="sortable">
+            <thead>
+                <tr>
+                    <th data-sort="text">Nyers név</th>
+                    <th data-sort="text">Javasolt egyezés</th>
+                    <th class="n" data-sort="num">Pontszám</th>
+                    <th>Döntés</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in yellow %}
+                <tr data-staging-id="{{ p.id }}">
+                    <td>{{ p.raw_name }}</td>
+                    <td>{{ p.matched_pm_id or '—' }}</td>
+                    <td class="n">{{ "%.0f"|format((p.match_score or 0) * 100) }}%</td>
+                    <td class="decision-cell">
+                        {% if p.decision %}
+                        <span class="tag tag-green">{{ p.decision }}</span>
+                        {% else %}
+                        <div class="decision-group">
+                            <select name="decision_{{ p.id }}" class="input-sm decision-select">
+                                <option value="">— válasszon —</option>
+                                <option value="accept">Elfogad</option>
+                                <option value="reassign">Másik partner</option>
+                                <option value="new">Új partner</option>
+                            </select>
+                            <input type="text" name="pm_id_{{ p.id }}"
+                                   placeholder="Partnernév keresése..."
+                                   class="input-sm partner-search"
+                                   style="display:none"
+                                   data-staging="{{ p.id }}">
+                            <input type="text" name="new_name_{{ p.id }}"
+                                   placeholder="Új partner név"
+                                   class="input-sm new-name-input" style="display:none"
+                                   id="new_name_{{ p.id }}">
+                            <button type="button" class="btn btn-sm btn-save-one" onclick="saveOne(this)">Mentés</button>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- RED ZONE -->
+    {% if red %}
+    <div class="box zone-box">
+        <div class="flex items-center justify-between">
+            <h3 class="zone-header zone-red">Piros zóna — nincs egyezés (&lt;85%)</h3>
+            {% if pending_red > 0 %}
+            <button type="submit" name="action" value="bulk_new_red"
+                    class="btn btn-sm btn-secondary"
+                    onclick="return confirm('Összes piros ({{ pending_red }} db) létrehozása új partnerként?')">
+                Összes → új partner ({{ pending_red }})
+            </button>
+            {% endif %}
+        </div>
+        <table class="sortable">
+            <thead>
+                <tr>
+                    <th data-sort="text">Nyers név</th>
+                    <th class="n" data-sort="num" data-sort-secondary="2">Hasonlóság</th>
+                    <th data-sort="text">Hasonló</th>
+                    <th class="n" data-sort="num">Előfordulás</th>
+                    <th>Döntés</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in red %}
+                <tr data-staging-id="{{ p.id }}">
+                    <td>{{ p.raw_name }}</td>
+                    <td class="n">{% if p.similarity >= 0.6 %}<span class="tag {% if p.similarity >= 0.85 %}tag-yellow{% else %}tag-red{% endif %}">{{ "%.0f"|format(p.similarity * 100) }}%</span>{% else %}—{% endif %}</td>
+                    <td class="similar-hint">{{ p.similar_to }}</td>
+                    <td class="n">{{ p.occurrence_count }}</td>
+                    <td class="decision-cell">
+                        {% if p.decision %}
+                        <span class="tag tag-green">{{ p.decision }} {{ p.new_pm_id or p.matched_pm_id or '' }}</span>
+                        {% else %}
+                        <div class="decision-group">
+                            <select name="decision_{{ p.id }}" class="input-sm decision-select">
+                                <option value="">— válasszon —</option>
+                                <option value="reassign">Meglévő partner</option>
+                                <option value="new" selected>Új partner</option>
+                            </select>
+                            <input type="text" name="pm_id_{{ p.id }}"
+                                   placeholder="Partnernév keresése..."
+                                   class="input-sm partner-search"
+                                   style="display:none">
+                            <input type="text" name="new_name_{{ p.id }}"
+                                   placeholder="Partner neve" value="{{ p.raw_name }}"
+                                   class="input-sm new-name-input">
+                            <button type="button" class="btn btn-sm btn-save-one" onclick="saveOne(this)">Mentés</button>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+        <button type="submit" name="action" value="save" class="btn btn-secondary">
+            Mentés (folytatás később)
+        </button>
+        {% if all_resolved %}
+        <button type="submit" name="action" value="next" class="btn btn-primary">
+            Tovább a státuszokhoz →
+        </button>
+        {% else %}
+        <button type="button" class="btn btn-primary" disabled
+                title="Minden partner hozzárendelése szükséges">
+            Tovább a státuszokhoz → ({{ pending_yellow + pending_red }} maradt)
+        </button>
+        {% endif %}
+    </div>
+</form>
+
+<!-- Partner search autocomplete -->
+<div id="search-dropdown" class="search-dropdown" style="display:none"></div>
+
+<script>
+// ── Save single partner decision (AJAX) ──
+function saveOne(btn) {
+    var tr = btn.closest('tr');
+    var stagingId = tr.dataset.stagingId;
+    var group = tr.querySelector('.decision-group');
+    var sel = group.querySelector('.decision-select');
+    var decision = sel.value;
+    if (!decision) { alert('Válasszon döntést!'); return; }
+
+    var pmInput = group.querySelector('.partner-search');
+    var nameInput = group.querySelector('.new-name-input');
+    var pm_id = pmInput ? pmInput.value.trim() : '';
+    var new_name = nameInput ? nameInput.value.trim() : '';
+
+    if (decision === 'reassign' && !pm_id) { alert('Válasszon meglévő partnert!'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    var payload = {
+        staging_id: stagingId,
+        decision: decision,
+        pm_id: pm_id,
+        new_name: new_name
+    };
+
+    function doSave(attempt) {
+        fetch('/import/partners/save_one', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                var cell = tr.querySelector('.decision-cell');
+                var label = decision === 'new' ? 'new ' + data.pm_id :
+                            decision === 'reassign' ? 'reassign ' + data.pm_id : 'accept';
+                cell.innerHTML = '<span class="tag tag-green">' + label + '</span>';
+                tr.classList.add('row-saved');
+                updatePendingCounts(data.pending_yellow, data.pending_red);
+            } else {
+                alert('Hiba: ' + (data.error || 'ismeretlen'));
+                btn.disabled = false;
+                btn.textContent = 'Mentés';
+            }
+        })
+        .catch(function() {
+            if (attempt < 3) {
+                btn.textContent = 'Újra... (' + (attempt+1) + '/3)';
+                setTimeout(function() { doSave(attempt + 1); }, 1000);
+            } else {
+                alert('Hálózati hiba 3 próba után. Ellenőrizd, hogy a szerver fut-e.');
+                btn.disabled = false;
+                btn.textContent = 'Mentés';
+            }
+        });
+    }
+    doSave(1);
+}
+
+function updatePendingCounts(py, pr) {
+    var tags = document.querySelectorAll('.progress-summary .tag');
+    tags.forEach(function(tag) {
+        if (tag.classList.contains('tag-yellow')) {
+            tag.textContent = tag.textContent.replace(/\d+ döntésre/, py + ' döntésre');
+        }
+        if (tag.classList.contains('tag-red')) {
+            tag.textContent = tag.textContent.replace(/\d+ döntésre/, pr + ' döntésre');
+        }
+    });
+    // Show/hide blocker
+    var blocker = document.querySelector('.tag-block');
+    if (blocker) {
+        blocker.style.display = (py + pr > 0) ? '' : 'none';
+    }
+    // Enable "next" button if all resolved
+    if (py + pr === 0) {
+        var actions = document.querySelector('.form-actions');
+        if (actions) {
+            actions.innerHTML =
+                '<button type="submit" name="action" value="save" class="btn btn-secondary">Mentés</button>' +
+                '<button type="submit" name="action" value="next" class="btn btn-primary">Tovább a státuszokhoz →</button>';
+        }
+    }
+}
+
+// ── Partner search autocomplete (event delegation) ──
+document.addEventListener('input', function(e) {
+    if (!e.target.classList.contains('partner-search')) return;
+    var inp = e.target;
+    var q = inp.value;
+    clearTimeout(inp._searchTimer);
+    if (q.length < 2) return;
+    inp._searchTimer = setTimeout(function() {
+        fetch('/partners/search?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var dd = document.getElementById('search-dropdown');
+            dd.innerHTML = '';
+            data.forEach(function(p) {
+                var div = document.createElement('div');
+                div.className = 'search-item';
+                div.textContent = p.partner_id + ' — ' + p.display_name;
+                div.onclick = function() {
+                    inp.value = p.partner_id;
+                    dd.style.display = 'none';
+                };
+                dd.appendChild(div);
+            });
+            if (data.length > 0) {
+                var rect = inp.getBoundingClientRect();
+                dd.style.top = (rect.bottom + window.scrollY) + 'px';
+                dd.style.left = rect.left + 'px';
+                dd.style.width = rect.width + 'px';
+                dd.style.display = 'block';
+            }
+        });
+    }, 300);
+});
+
+// ── Toggle inputs based on decision (event delegation) ──
+document.addEventListener('change', function(e) {
+    if (!e.target.classList.contains('decision-select')) return;
+    var sel = e.target;
+    var group = sel.closest('.decision-group');
+    var searchInput = group.querySelector('.partner-search');
+    var nameInput = group.querySelector('.new-name-input');
+    if (searchInput) searchInput.style.display = sel.value === 'reassign' ? '' : 'none';
+    if (nameInput) nameInput.style.display = sel.value === 'new' ? '' : 'none';
+});
+
+// ── Close dropdown on outside click ──
+document.addEventListener('click', function(e) {
+    if (!e.target.classList.contains('partner-search')) {
+        document.getElementById('search-dropdown').style.display = 'none';
+    }
+});
+
+// ── Quick filter (debounced) ──
+(function() {
+    var filterInput = document.getElementById('table-filter');
+    var countSpan = document.getElementById('filter-count');
+    if (!filterInput) return;
+    var timer;
+
+    var clearBtn = document.getElementById('filter-clear');
+
+    filterInput.addEventListener('input', function() {
+        clearTimeout(timer);
+        timer = setTimeout(doFilter, 150);
+        clearBtn.style.display = filterInput.value ? '' : 'none';
+    });
+
+    clearBtn.addEventListener('click', function() {
+        filterInput.value = '';
+        clearBtn.style.display = 'none';
+        doFilter();
+        filterInput.focus();
+    });
+
+    function doFilter() {
+        var q = filterInput.value.toLowerCase().trim();
+        var tables = document.querySelectorAll('table.sortable');
+        var shown = 0, total = 0;
+
+        tables.forEach(function(table) {
+            var rows = table.querySelectorAll('tbody tr');
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                total++;
+                var cell0 = row.cells[0];
+                var text = cell0 ? cell0.textContent.toLowerCase() : '';
+                if (row.cells[1]) text += ' ' + row.cells[1].textContent.toLowerCase();
+                if (!q || text.indexOf(q) !== -1) {
+                    row.style.display = '';
+                    shown++;
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+
+        countSpan.textContent = q ? (shown + ' / ' + total + ' találat') : '';
+    }
+})();
+
+// ── Sortable table headers ──
+document.querySelectorAll('table.sortable').forEach(function(table) {
+    var headers = table.querySelectorAll('th[data-sort]');
+    headers.forEach(function(th, colIdx) {
+        th.style.cursor = 'pointer';
+        th.style.userSelect = 'none';
+        th.title = 'Kattintson a rendezéshez';
+        th.addEventListener('click', function() {
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            var type = th.dataset.sort;
+            var asc = th.dataset.dir !== 'asc';
+            headers.forEach(function(h) { h.dataset.dir = ''; h.classList.remove('sort-asc','sort-desc'); });
+            th.dataset.dir = asc ? 'asc' : 'desc';
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+            var secondaryCol = th.dataset.sortSecondary !== undefined
+                ? parseInt(th.dataset.sortSecondary, 10) : -1;
+
+            rows.sort(function(a, b) {
+                var cellA = a.cells[colIdx];
+                var cellB = b.cells[colIdx];
+                var vA = (cellA ? cellA.textContent : '').trim();
+                var vB = (cellB ? cellB.textContent : '').trim();
+                var cmp;
+                if (type === 'num') {
+                    vA = parseFloat(vA.replace('%','').replace('—','0')) || 0;
+                    vB = parseFloat(vB.replace('%','').replace('—','0')) || 0;
+                    cmp = asc ? vA - vB : vB - vA;
+                } else {
+                    cmp = asc ? vA.localeCompare(vB, 'hu') : vB.localeCompare(vA, 'hu');
+                }
+                if (cmp !== 0 || secondaryCol < 0) return cmp;
+                // Secondary sort: always alphabetical ascending
+                var sA = (a.cells[secondaryCol] ? a.cells[secondaryCol].textContent : '').trim();
+                var sB = (b.cells[secondaryCol] ? b.cells[secondaryCol].textContent : '').trim();
+                return sA.localeCompare(sB, 'hu');
+            });
+            rows.forEach(function(row) { tbody.appendChild(row); });
+        });
+    });
+});
+</script>
+
+<style>
+th[data-sort] { position: relative; padding-right: 18px !important; }
+th[data-sort]::after { content: '⇅'; position: absolute; right: 4px; opacity: .3; font-size: .7rem; }
+th.sort-asc::after { content: '▲'; opacity: .8; }
+th.sort-desc::after { content: '▼'; opacity: .8; }
+.zone-header { padding: 8px 0; font-size: .85rem; }
+.zone-green { color: #4ade80; border-bottom: 2px solid #22c55e; }
+.zone-yellow { color: #fbbf24; border-bottom: 2px solid #f59e0b; }
+.zone-red { color: #fca5a5; border-bottom: 2px solid #ef4444; }
+.zone-box { margin-bottom: 16px; }
+.progress-summary {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    padding: 12px 16px; margin-bottom: 16px;
+}
+.tag-green { background: rgba(34,197,94,.15); color: #4ade80; }
+.tag-yellow { background: rgba(245,158,11,.15); color: #fbbf24; }
+.tag-red { background: rgba(239,68,68,.15); color: #fca5a5; }
+.tag-block { background: rgba(239,68,68,.2); color: #fca5a5; }
+.decision-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.input-sm {
+    padding: 4px 8px; font-size: .75rem; border-radius: 6px;
+    background: #0f172a; border: 1px solid #475569; color: #e2e8f0;
+}
+.btn-sm { padding: 3px 10px; font-size: .7rem; }
+.similar-hint { font-size: .75rem; color: #94a3b8; max-width: 200px; }
+.btn-save-one { background: #22c55e; color: #fff; border: none; cursor: pointer; white-space: nowrap; }
+.btn-save-one:hover { background: #16a34a; }
+.row-saved { opacity: .5; }
+.search-dropdown {
+    position: absolute; z-index: 100;
+    background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+    max-height: 200px; overflow-y: auto;
+}
+.search-item {
+    padding: 6px 12px; font-size: .75rem; color: #cbd5e1; cursor: pointer;
+}
+.search-item:hover { background: #334155; }
+</style>
+{% endblock %}

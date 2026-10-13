@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Partner összevonás — Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-24">
+  <h1 class="mb-0">Partner összevonás</h1>
+  <a href="/partners/" class="btn btn-outline btn-sm">Vissza a listához</a>
+</div>
+
+<div class="card mb-16">
+  <p class="text-muted mb-16">
+    Az összevonás az aliasokat áthelyezi a másodlagos partnerről a megtartottra,
+    és a másodlagos partnert véglegesen törli. A művelet nem visszavonható.
+  </p>
+  <p class="text-muted">
+    Az összevonás az aliasokat áthelyezi és a másodlagos partnert törli.
+  </p>
+</div>
+
+<!-- Two search boxes -->
+<div class="card-grid card-grid-2 mb-16">
+  <!-- Partner A: megtartott -->
+  <div class="card">
+    <h2>Megtartott partner</h2>
+    <div class="form-group">
+      <label for="search-kept">Keresés</label>
+      <input type="text" id="search-kept" placeholder="Partnernév keresése..."
+             autocomplete="off" oninput="searchPartner('kept', this.value)">
+    </div>
+    <div id="results-kept" class="search-results" style="display:none;"></div>
+    <div id="selected-kept" class="selected-partner" style="display:none;">
+      <div class="partner-card">
+        <div class="flex items-center justify-between">
+          <div>
+            <strong id="kept-name"></strong>
+            <div class="text-muted" id="kept-meta"></div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="clearPartner('kept')">Torles</button>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" id="kept-id" name="kept_id_display">
+  </div>
+
+  <!-- Partner B: összevont -->
+  <div class="card">
+    <h2>Összevonandó partner (törlendő)</h2>
+    <div class="form-group">
+      <label for="search-merged">Keresés</label>
+      <input type="text" id="search-merged" placeholder="Partnernév keresése..."
+             autocomplete="off" oninput="searchPartner('merged', this.value)">
+    </div>
+    <div id="results-merged" class="search-results" style="display:none;"></div>
+    <div id="selected-merged" class="selected-partner" style="display:none;">
+      <div class="partner-card">
+        <div class="flex items-center justify-between">
+          <div>
+            <strong id="merged-name"></strong>
+            <div class="text-muted" id="merged-meta"></div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="clearPartner('merged')">Torles</button>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" id="merged-id" name="merged_id_display">
+  </div>
+</div>
+
+<!-- Side-by-side comparison (hidden until both selected) -->
+<div id="comparison" class="card mb-16" style="display:none;">
+  <h2>Összehasonlítás</h2>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Mező</th>
+          <th id="comp-kept-header">Megtartott</th>
+          <th id="comp-merged-header">Összevonandó</th>
+        </tr>
+      </thead>
+      <tbody id="comparison-body">
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Submit form (hidden until both selected) -->
+<div id="merge-form-container" style="display:none;">
+  <form method="post" action="/partners/merge"
+        onsubmit="return confirmMerge()">
+    <input type="hidden" name="kept_id" id="form-kept-id">
+    <input type="hidden" name="merged_id" id="form-merged-id">
+
+    <div class="card">
+      <p class="mb-16">
+        <strong id="merge-summary"></strong>
+      </p>
+      <div class="btn-group">
+        <button type="submit" class="btn btn-danger">Összevonás végrehajtása</button>
+        <a href="/partners/" class="btn btn-outline">Mégse</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<style>
+  .search-results {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 4px;
+  }
+  .search-result-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--surface2); }
+  .search-result-item .result-id {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .partner-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-top: 8px;
+  }
+</style>
+
+<script>
+  let keptData = null;
+  let mergedData = null;
+  let searchTimers = {};
+
+  function searchPartner(role, q) {
+    clearTimeout(searchTimers[role]);
+    if (q.length < 2) {
+      document.getElementById('results-' + role).style.display = 'none';
+      return;
+    }
+    searchTimers[role] = setTimeout(async () => {
+      const res = await fetch('/partners/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      renderResults(role, data);
+    }, 250);
+  }
+
+  function renderResults(role, items) {
+    const container = document.getElementById('results-' + role);
+    if (!items.length) {
+      container.style.display = 'none';
+      return;
+    }
+    container.innerHTML = items.map(p => `
+      <div class="search-result-item" onclick="selectPartner('${role}', ${JSON.stringify(p).replace(/"/g, '&quot;')})">
+        <div><strong>${p.display_name}</strong></div>
+        <div class="result-id">${p.partner_id} &bull; ${p.country || '—'} &bull; ${p.partner_type || '—'}</div>
+      </div>
+    `).join('');
+    container.style.display = 'block';
+  }
+
+  function selectPartner(role, partner) {
+    document.getElementById('results-' + role).style.display = 'none';
+    document.getElementById('search-' + role).value = partner.display_name;
+    document.getElementById(role + '-id').value = partner.partner_id;
+    document.getElementById(role + '-name').textContent = partner.display_name;
+    document.getElementById(role + '-meta').textContent =
+      partner.partner_id + ' · ' + (partner.country || '—') + ' · ' + (partner.partner_type || '—');
+    document.getElementById('selected-' + role).style.display = 'block';
+
+    if (role === 'kept') keptData = partner;
+    else mergedData = partner;
+
+    updateComparison();
+  }
+
+  function clearPartner(role) {
+    document.getElementById('search-' + role).value = '';
+    document.getElementById(role + '-id').value = '';
+    document.getElementById('selected-' + role).style.display = 'none';
+    if (role === 'kept') keptData = null;
+    else mergedData = null;
+    updateComparison();
+  }
+
+  function updateComparison() {
+    const comp = document.getElementById('comparison');
+    const formContainer = document.getElementById('merge-form-container');
+
+    if (!keptData || !mergedData) {
+      comp.style.display = 'none';
+      formContainer.style.display = 'none';
+      return;
+    }
+
+    // Update comparison table
+    document.getElementById('comp-kept-header').textContent =
+      keptData.display_name + ' (' + keptData.partner_id + ')';
+    document.getElementById('comp-merged-header').textContent =
+      mergedData.display_name + ' (' + mergedData.partner_id + ')';
+
+    const fields = [
+      ['partner_id', 'PM-ID'],
+      ['display_name', 'Megjelenítési név'],
+      ['country', 'Ország'],
+      ['partner_type', 'Típus'],
+    ];
+
+    const tbody = document.getElementById('comparison-body');
+    tbody.innerHTML = fields.map(([key, label]) => `
+      <tr>
+        <td class="text-muted">${label}</td>
+        <td>${keptData[key] || '—'}</td>
+        <td>${mergedData[key] || '—'}</td>
+      </tr>
+    `).join('');
+
+    comp.style.display = 'block';
+
+    // Update form
+    document.getElementById('form-kept-id').value = keptData.partner_id;
+    document.getElementById('form-merged-id').value = mergedData.partner_id;
+    document.getElementById('merge-summary').textContent =
+      '"' + mergedData.display_name + '" (' + mergedData.partner_id + ') ' +
+      'összevonása ide: "' + keptData.display_name + '" (' + keptData.partner_id + ')';
+    formContainer.style.display = 'block';
+  }
+
+  function confirmMerge() {
+    if (!keptData || !mergedData) return false;
+    return confirm(
+      'Biztosan összevonja?\n\n' +
+      'Törlendő: ' + mergedData.display_name + ' (' + mergedData.partner_id + ')\n' +
+      'Megtartott: ' + keptData.display_name + ' (' + keptData.partner_id + ')\n\n' +
+      'Ez a művelet nem visszavonható!'
+    );
+  }
+
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    ['kept', 'merged'].forEach(role => {
+      if (!e.target.closest('#search-' + role) && !e.target.closest('#results-' + role)) {
+        document.getElementById('results-' + role).style.display = 'none';
+      }
+    });
+  });
+</script>
+{% endblock %}
