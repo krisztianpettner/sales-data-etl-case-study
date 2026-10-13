@@ -58,15 +58,29 @@ cd src && python etl/run_etl.py           # beolvasás → átalakítás → bet
 A futás a csővezeték saját keresztellenőrzéseivel zárul; az [Üzleti definíciók](docs/hu/06-business-definitions.md)
 fejezet dashboard-képe ennek a futásnak a kimenete.
 
-## Olvasási utak
+## A fejezetek
 
-| idő | olvasd |
-|---|---|
-| **15 perc** | ez az oldal → [Áttekintés](docs/hu/00-at-a-glance.md) → [A káosz, soronként](docs/hu/01-the-mess.md) |
-| **45 perc** | + [Névegyesítés](docs/hu/03-entity-resolution.md), [Operátori műhely](docs/hu/05-operator-workshop.md), [Üzleti definíciók](docs/hu/06-business-definitions.md) |
-| **mélyfúrás** | [Döntés-rekordok](docs/hu/adr.md) → [Adatmodell](docs/hu/04-data-model.md) → [Kód-térkép](src/README.md) |
+Kevés az idő? Olvasd el a [00](docs/hu/00-at-a-glance.md)-t és a [01](docs/hu/01-the-mess.md)-et — tizenöt perc. Ha
+az is érdekel, hogyan maradt ki a megbízó adata, jöhet a [10](docs/hu/10-data-protection.md).
 
-Ismeretlen fogalom? → [Szójegyzék](docs/hu/glossary.md)
+| # | fejezet | mire felel | kód |
+|---|---|---|---|
+| 00 | [Áttekintés](docs/hu/00-at-a-glance.md) | a rendszer egy képen, és a tizennégy döntés soronként egy mondatban | |
+| 01 | [A káosz, soronként](docs/hu/01-the-mess.md) | az adat minden problémaosztálya, mindegyikhez szintetikus példa és a megoldás | |
+| 02 | [Beolvasás](docs/hu/02-ingestion.md) | hogyan olvassuk az évente változó szerkezetű táblákat | [`etl/config.py`](src/etl/config.py), [`etl/extract.py`](src/etl/extract.py) |
+| 03 | [Névegyesítés](docs/hu/03-entity-resolution.md) | hogyan lesz egy cég húsz írásmódjából egy partner — és ki dönt | [`etl/transform.py`](src/etl/transform.py), [`admin/etl_bridge.py`](src/admin/etl_bridge.py) |
+| 04 | [Adatmodell](docs/hu/04-data-model.md) | két adatbázis — mi származtatott, mire emlékezni kell; nézetek; a JSON-szerződés | [`etl/load.py`](src/etl/load.py), [`sql/views`](src/sql/views) |
+| 05 | [Operátori műhely](docs/hu/05-operator-workshop.md) | az import-varázsló, a minőségkapu, a hibajegyzék-kör azokkal, akik az adatot gépelik | [`admin/routes`](src/admin/routes) |
+| 06 | [Üzleti definíciók](docs/hu/06-business-definitions.md) | hogyan lesz egy szám védhető egy bank előtt | [`etl/export_json.py`](src/etl/export_json.py) |
+| 07 | [Hogyan dolgoztam](docs/hu/07-how-i-worked.md) | a munka megosztása köztem és az AI között, és a szabályok, amiket felállítottam | |
+| 08 | [Mérőszámok](docs/hu/08-metrics.md) | minden szám, dátummal és módszerrel | |
+| 09 | [Kimenet](docs/hu/09-outcome.md) | hol tart, mi nem tökéletes még, mit csinálnék másképp | |
+| 10 | [Adatvédelem](docs/hu/10-data-protection.md) | hogyan anonimizáltuk ezt a repót — és mit kaptak el a szkennelések | [`samples/`](samples/generate_synthetic.py) |
+| A | [Döntés-rekordok](docs/hu/adr.md) | a tizenöt döntés teljes terjedelmében | |
+| B | [Szójegyzék](docs/hu/glossary.md) | az itt használt fogalmak | |
+
+A [`src/`](src/README.md) mappa negyven fájlos, maszkolt, kurált kódkivonat — olvasásra készült, és a
+szintetikus adaton le is fut.
 
 ## Amit én döntöttem el
 
@@ -92,21 +106,10 @@ Ismeretlen fogalom? → [Szójegyzék](docs/hu/glossary.md)
 | Operátori döntések | 34 import-menet; 906 piros + 17 sárga név-ellenőrzésről ember döntött (menetenkénti ellenőrzések, nem különböző cégek); 331 kézi ország-döntés |
 | Minőségkapu | évenkénti első import: 104 / 167 / 26 blokkoló hiba a legrégebbi években (2020–2022), importonként 0–9 a 2023–2026-os években — szinte mind munkaszám nélkül begépelt megnyert üzlet, amit a kapu elkap |
 
-## Hol keresd
-
-| ha arra vagy kíváncsi… | olvasd |
-|---|---|
-| mi ez, egy oldalon | [Áttekintés](docs/hu/00-at-a-glance.md) |
-| pontosan mi volt rossz az adatban, és mi lett a megoldás | [A káosz, soronként](docs/hu/01-the-mess.md) |
-| hogyan olvassuk a változó szerkezetű táblákat | [Beolvasás](docs/hu/02-ingestion.md) |
-| hogyan lesz egy cég húsz írásmódjából egy partner | [Névegyesítés](docs/hu/03-entity-resolution.md) |
-| miért két adatbázis, és mi hol él | [Adatmodell](docs/hu/04-data-model.md) |
-| hogyan vontuk be a körbe azokat, akik az adatot gépelik | [Operátori műhely](docs/hu/05-operator-workshop.md) |
-| hogyan lesz egy szám védhető egy bank előtt | [Üzleti definíciók](docs/hu/06-business-definitions.md) |
-| hogyan oszlott meg a munka köztem és az AI között | [Hogyan dolgoztam](docs/hu/07-how-i-worked.md) |
-| mi nem tökéletes még | [Kimenet](docs/hu/09-outcome.md) |
-| hogyan maradt ki a megbízó adata ebből a repóból | [Adatvédelem](docs/hu/10-data-protection.md) |
-
 ---
 
-© 2026 Pettner Krisztián. Áttekintésre megosztva; minden jog fenntartva.
+*A repó kódját Claude írta, az én tervem szerint. A terv az enyém — mindenekelőtt a szétválasztás aközött,
+ami származtatott, és ami emberi döntés, és a kör, amely a hibákat visszaküldi azokhoz, akik az adatot
+gépelik. Ugyanígy az üzleti definíciók, minden szám átnézése és a dokumentáció.*
+
+<sub>© 2026 Pettner Krisztián. Áttekintésre megosztva; minden jog fenntartva.</sub>

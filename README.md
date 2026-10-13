@@ -58,15 +58,29 @@ cd src && python etl/run_etl.py           # extract → transform → load → r
 The run ends with the pipeline's own cross-checks; the dashboard picture in
 [Business definitions](docs/en/06-business-definitions.md) is this run's output.
 
-## Reading paths
+## The chapters
 
-| time | read |
-|---|---|
-| **15 minutes** | this page → [At a glance](docs/en/00-at-a-glance.md) → [The mess, row by row](docs/en/01-the-mess.md) |
-| **45 minutes** | + [Entity resolution](docs/en/03-entity-resolution.md), [Operator workshop](docs/en/05-operator-workshop.md), [Business definitions](docs/en/06-business-definitions.md) |
-| **deep dive** | [Decision records](docs/en/adr.md) → [Data model](docs/en/04-data-model.md) → [Code map](src/README.md) |
+Short on time? Read [00](docs/en/00-at-a-glance.md) and [01](docs/en/01-the-mess.md) — fifteen minutes. If you
+care how client data was kept out, add [10](docs/en/10-data-protection.md).
 
-Unfamiliar term? → [Glossary](docs/en/glossary.md)
+| # | chapter | answers | code |
+|---|---|---|---|
+| 00 | [At a glance](docs/en/00-at-a-glance.md) | the system on one picture, and the fourteen decisions in one line each | |
+| 01 | [The mess, row by row](docs/en/01-the-mess.md) | every class of problem in the data, a synthetic example of each, and its fix | |
+| 02 | [Ingestion](docs/en/02-ingestion.md) | how spreadsheets whose layout changes every year are read | [`etl/config.py`](src/etl/config.py), [`etl/extract.py`](src/etl/extract.py) |
+| 03 | [Entity resolution](docs/en/03-entity-resolution.md) | how one company's twenty spellings become one partner — and who decides | [`etl/transform.py`](src/etl/transform.py), [`admin/etl_bridge.py`](src/admin/etl_bridge.py) |
+| 04 | [Data model](docs/en/04-data-model.md) | two databases — what is derived, what is remembered; views; the JSON contract | [`etl/load.py`](src/etl/load.py), [`sql/views`](src/sql/views) |
+| 05 | [Operator workshop](docs/en/05-operator-workshop.md) | the import wizard, the quality gate, the error-list loop with the people who type the data | [`admin/routes`](src/admin/routes) |
+| 06 | [Business definitions](docs/en/06-business-definitions.md) | how a number becomes defensible in front of a bank | [`etl/export_json.py`](src/etl/export_json.py) |
+| 07 | [How I worked](docs/en/07-how-i-worked.md) | the split between me and the AI, and the rules I set | |
+| 08 | [Metrics](docs/en/08-metrics.md) | every number, with date and method | |
+| 09 | [Outcome](docs/en/09-outcome.md) | where it stands, what is still imperfect, what I would do differently | |
+| 10 | [Data protection](docs/en/10-data-protection.md) | how this repository was anonymised — and what the scans caught | [`samples/`](samples/generate_synthetic.py) |
+| A | [Decision records](docs/en/adr.md) | the fifteen decisions in full | |
+| B | [Glossary](docs/en/glossary.md) | the terms used here | |
+
+The code in [`src/`](src/README.md) is a curated, masked extract of forty files, for reading — and it runs on
+the synthetic data.
 
 ## What I decided
 
@@ -92,21 +106,10 @@ Unfamiliar term? → [Glossary](docs/en/glossary.md)
 | Operator decisions | 34 import sessions; 906 red + 17 yellow name checks decided by a person (checks across sessions, not distinct companies); 331 manual country decisions |
 | Quality gate | first import per year: 104 / 167 / 26 blocking issues in the oldest years (2020–2022), 0–9 per import in 2023–2026 — almost all of them a won deal typed without its work number, caught at the gate |
 
-## Where to look
-
-| if you are wondering… | read |
-|---|---|
-| what this is, on one page | [At a glance](docs/en/00-at-a-glance.md) |
-| what exactly was wrong with the data, and the fix for each | [The mess, row by row](docs/en/01-the-mess.md) |
-| how changing spreadsheet layouts are read | [Ingestion](docs/en/02-ingestion.md) |
-| how one company's twenty spellings become one partner | [Entity resolution](docs/en/03-entity-resolution.md) |
-| why two databases, and what lives where | [Data model](docs/en/04-data-model.md) |
-| how the people who type the data were brought into the loop | [Operator workshop](docs/en/05-operator-workshop.md) |
-| how a number becomes defensible in front of a bank | [Business definitions](docs/en/06-business-definitions.md) |
-| how the work was split between me and the AI | [How I worked](docs/en/07-how-i-worked.md) |
-| what is still imperfect | [Outcome](docs/en/09-outcome.md) |
-| how client data was kept out of this repository | [Data protection](docs/en/10-data-protection.md) |
-
 ---
 
-© 2026 Krisztián Pettner. Shared for review; all rights reserved.
+*Code in this repository was written by Claude to my design. The plan is mine — above all the split
+between what is derived and what a person decided, and the loop that sends errors back to the people
+who type the data. So are the business definitions, the review of every number, and the record.*
+
+<sub>© 2026 Krisztián Pettner. Shared for review; all rights reserved.</sub>
