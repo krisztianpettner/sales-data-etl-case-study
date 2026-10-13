@@ -64,8 +64,8 @@ A 2. termékcsoport ajánlatainak tételsorai vannak. Két elrendezés létezik:
 flowchart TB
     subgraph NEW["2023+ elrendezés"]
         H1[sor: Q2-26-118 · Cég 044 · státusz 'kiajánlva' · 1. tétel · 1 123]
-        L1[sor: Q2-26-118 · státusz '[rendelés tételsora]' · 2. tétel · 18 400]
-        L2[sor: Q2-26-118 · státusz '[rendelés tételsora]' · 3. tétel · 957]
+        L1["sor: Q2-26-118 · státusz '[rendelés tételsora]' · 2. tétel · 18 400"]
+        L2["sor: Q2-26-118 · státusz '[rendelés tételsora]' · 3. tétel · 957"]
     end
     subgraph OLD["régebbi elrendezés"]
         H2[sor: Q2-22-031 · Cég 052 · visszajelzés 'lerendelték' · 637]

@@ -22,7 +22,7 @@ So the design principle is: **automate the cheap mistake, leave the expensive on
 
 ```mermaid
 flowchart TB
-    RAW[raw name from the sheet<br/>'Cég-Nyolc Zrt. (site B)'] --> N[normalise<br/>lowercase · strip accents · punctuation → space<br/>strip legal-form suffix]
+    RAW["raw name from the sheet<br/>'Cég-Nyolc Zrt. (site B)'"] --> N[normalise<br/>lowercase · strip accents · punctuation → space<br/>strip legal-form suffix]
     N --> K['ceg nyolc site b']
     K --> S[similarity vs every partner<br/>and every stored alias<br/>length-blocked · a known alias scores 1.0]
     S --> Z{score}

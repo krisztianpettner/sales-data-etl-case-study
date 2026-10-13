@@ -22,7 +22,7 @@ A tervezési elv tehát: **az olcsó hibát automatizáljuk, a drágát emberre 
 
 ```mermaid
 flowchart TB
-    RAW[nyers név a lapról<br/>'Cég-Nyolc Zrt. (B telephely)'] --> N[normalizálás<br/>kisbetű · ékezet le · írásjel → szóköz<br/>cégforma-végződés le]
+    RAW["nyers név a lapról<br/>'Cég-Nyolc Zrt. (B telephely)'"] --> N[normalizálás<br/>kisbetű · ékezet le · írásjel → szóköz<br/>cégforma-végződés le]
     N --> K['ceg nyolc b telephely']
     K --> S[hasonlóság minden partnerrel<br/>és minden tárolt aliasszal<br/>hossz szerinti szűrés · ismert alias = 1,0]
     S --> Z{pontszám}

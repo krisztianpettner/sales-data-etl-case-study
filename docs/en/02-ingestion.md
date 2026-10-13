@@ -64,8 +64,8 @@ Product group 2 quotes have line items. Two layouts exist:
 flowchart TB
     subgraph NEW["2023+ layout"]
         H1[row: Q2-26-118 · Company 044 · status 'quoted' · pos 1 · 1 123]
-        L1[row: Q2-26-118 · status '[order line item]' · pos 2 · 18 400]
-        L2[row: Q2-26-118 · status '[order line item]' · pos 3 · 957]
+        L1["row: Q2-26-118 · status '[order line item]' · pos 2 · 18 400"]
+        L2["row: Q2-26-118 · status '[order line item]' · pos 3 · 957"]
     end
     subgraph OLD["older layout"]
         H2[row: Q2-22-031 · Company 052 · feedback 'ordered' · 637]
